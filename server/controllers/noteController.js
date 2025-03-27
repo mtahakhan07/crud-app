@@ -2,7 +2,8 @@ const Note = require("../models/note");
 
 const getNotes = async (req, res) => {
     try {
-        const notes = await Note.find();
+        // Only return notes for the logged-in user
+        const notes = await Note.find({ user: req.userId });
         res.json(notes);
     } catch (err) {
         res.status(500).json({ message: err.message });
@@ -11,7 +12,7 @@ const getNotes = async (req, res) => {
 
 const getNoteById = async (req, res) => {
     try {
-        const note = await Note.findById(req.params.id);
+        const note = await Note.findOne({ _id: req.params.id, user: req.userId });
         if (!note) return res.status(404).json({ message: "Note not found" });
         res.json(note);
     } catch (err) {
@@ -23,6 +24,7 @@ const createNote = async (req, res) => {
     const note = new Note({
         title: req.body.title,
         content: req.body.content,
+        user: req.userId // Associate note with user
     });
 
     try {
@@ -35,8 +37,13 @@ const createNote = async (req, res) => {
 
 const updateNote = async (req, res) => {
     try {
-        const updatedNote = await Note.findByIdAndUpdate(req.params.id, req.body, { new: true });
-        if (!updatedNote) return res.status(404).json({ message: "Note not found" });
+        // Only update if the note belongs to the user
+        const updatedNote = await Note.findOneAndUpdate(
+            { _id: req.params.id, user: req.userId },
+            req.body,
+            { new: true }
+        );
+        if (!updatedNote) return res.status(404).json({ message: "Note not found or unauthorized" });
         res.json(updatedNote);
     } catch (err) {
         res.status(400).json({ message: err.message });
@@ -45,8 +52,9 @@ const updateNote = async (req, res) => {
 
 const deleteNote = async (req, res) => {
     try {
-        const deletedNote = await Note.findByIdAndDelete(req.params.id);
-        if (!deletedNote) return res.status(404).json({ message: "Note not found" });
+        // Only delete if the note belongs to the user
+        const deletedNote = await Note.findOneAndDelete({ _id: req.params.id, user: req.userId });
+        if (!deletedNote) return res.status(404).json({ message: "Note not found or unauthorized" });
         res.json({ message: "Note deleted successfully" });
     } catch (err) {
         res.status(500).json({ message: err.message });
